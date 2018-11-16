@@ -59,7 +59,7 @@ namespace Respawn.Postgres
             CloseClientConnections(systemConnectionString, sourceDatabaseName, commandTimeout);
             CloseClientConnections(systemConnectionString, targetDatabaseName, commandTimeout);
 
-            DropDatabaseIfExistsInternal(systemConnectionString, targetDatabaseName, commandTimeout, autoCreateExtensions);
+            DropDatabaseIfExistsInternal(systemConnectionString, targetDatabaseName, commandTimeout, autoCreateExtensions, true);
             CopyDatabaseInternal(systemConnectionString, targetDatabaseName, sourceDatabaseName, commandTimeout);
         }
 
@@ -352,8 +352,20 @@ namespace Respawn.Postgres
             }
         }
 
-        private static void DropDatabaseIfExistsInternal(string systemConnectionString, string databaseName, int? commandTimeout, bool autoCreateExtensions = false)
+        private static void DropDatabaseIfExistsInternal(string systemConnectionString, string databaseName, int? commandTimeout, bool autoCreateExtensions = false, bool useConnectionStringCredentials = false)
         {
+            NpgsqlConnectionStringBuilder connectionStringBuilder = null;
+
+            if (useConnectionStringCredentials)
+            {
+                connectionStringBuilder = new NpgsqlConnectionStringBuilder(systemConnectionString);
+
+                if (String.IsNullOrEmpty(connectionStringBuilder.Username) || String.IsNullOrEmpty(connectionStringBuilder.Password))
+                {
+                    throw new ArgumentException("can't find credentials in connection string");
+                }
+            }
+
             if (autoCreateExtensions)
             {
                 CreateExtensionIfNotExists(systemConnectionString, "dblink", commandTimeout);
@@ -362,7 +374,7 @@ namespace Respawn.Postgres
             using (var connection = new NpgsqlConnection(systemConnectionString))
             {
                 connection.Open();
-                
+
                 var command = connection.CreateCommand();
 
                 if (commandTimeout.HasValue)
@@ -375,7 +387,8 @@ namespace Respawn.Postgres
                     $$
                     begin
                         if exists (select 1 from pg_database where datname='{databaseName}') then
-                            perform dblink_exec('dbname=' || current_database(), 'drop database ""{databaseName}""');
+                            perform dblink_exec(' {(useConnectionStringCredentials ? $"user={connectionStringBuilder.Username} password={connectionStringBuilder.Password}" : "")}
+                            dbname=' || current_database(), 'drop database ""{databaseName}""');
                         end if;
                     end;
                     $$";

@@ -9,8 +9,8 @@ namespace Respawn.Postgres.IntegrationTests
 {
     public class PostgresTests : IAsyncLifetime
     {
-        private const string RootConnString = "Server=127.0.0.1;Port=8099;User ID=docker;Password=Password12!;database=postgres";
-        private const string DbConnString = "Server=127.0.0.1;Port=8099;User ID=docker;Password=Password12!;database={0}";
+        private const string RootConnString = "Server=127.0.0.1;Port=5432;User ID=test;Password=12345;database=postgres";
+        private const string DbConnString = "Server=127.0.0.1;Port=5432;User ID=test;Password=12345;database={0}";
 
         private readonly ITestOutputHelper _output;
         private NpgsqlConnection _connection;
